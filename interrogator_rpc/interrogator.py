@@ -35,6 +35,7 @@ WD_TAGGER_NAMES = [
     "wd-v1-4-convnext-tagger-v2",
     "wd-v1-4-swinv2-tagger-v2",
 ]
+
 WD_TAGGER_THRESHOLDS = [
     0.35,
     0.35,
@@ -42,6 +43,9 @@ WD_TAGGER_THRESHOLDS = [
     0.3685,
     0.3771,
 ]  # v1: idk if it's okay  v2: P=R thresholds on each repo https://huggingface.co/SmilingWolf
+
+
+
 
 INTERROGATORS = (
     [captioning.BLIP()]
@@ -52,8 +56,10 @@ INTERROGATORS = (
         tagger.WaifuDiffusion(name, WD_TAGGER_THRESHOLDS[i])
         for i, name in enumerate(WD_TAGGER_NAMES)
     ]
+    + [ None ]  # Special case multi-interrogator
 )
-INTERROGATOR_NAMES = [it.name() for it in INTERROGATORS]
+
+INTERROGATOR_NAMES = [it.name() if it else "deep-danbooru + waifu-diffusion" for it in INTERROGATORS]
 
 INTERROGATOR_MAP = dict(zip(INTERROGATOR_NAMES, INTERROGATORS))
 

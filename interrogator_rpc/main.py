@@ -15,6 +15,7 @@
 
 import logging
 import threading
+import tqdm
 import time
 import io
 from PIL import Image
@@ -44,6 +45,26 @@ def interrogate_image(network_name, image_obj):
 
 		return tags
 
+
+def extract_tag_ret(tags_in, threshold):
+
+	ret = {}
+
+	if isinstance(tags_in, dict):
+		for tag, probability in tags_in.items():
+			if probability > threshold:
+				ret[tag] = probability
+
+	elif isinstance(tags_in, (list, tuple)):
+		for tag in tags_in:
+			ret[tag] = 1
+
+	else:
+		raise RuntimeError("Tags must either be a list or a dict")
+
+	return ret
+
+
 class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer):
 	"""Provides methods that implement functionality of route guide server."""
 
@@ -58,6 +79,10 @@ class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer
 
 	def InterrogateImage(self, request, context):
 
+		print("Interrogate Request!")
+		print("Network: ", request.interrogator_network)
+		print("File size: ", len(request.interrogate_image))
+
 		if request.interrogator_network not in interrogator.INTERROGATOR_MAP:
 
 			ret = rpc_proto.services_pb2.ImageTagResults(
@@ -66,16 +91,46 @@ class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer
 						request.interrogator_network, list(interrogator.INTERROGATOR_MAP.keys())
 						)
 				)
+			print(ret.error_msg)
 			return ret
 
-		tag_listing = []
+		if not request.interrogate_image:
+
+			ret = rpc_proto.services_pb2.ImageTagResults(
+					interrogate_ok = False,
+					error_msg      = "Interrogate Failed - Received no image!"
+				)
+			print(ret.error_msg)
+			return ret
+
+
+		tag_listing = {}
 		try:
 
 			image_bytes = request.interrogate_image
 
 			image_obj = Image.open(io.BytesIO(image_bytes))
+			if request.interrogator_network == "deep-danbooru + waifu-diffusion":
 
-			tag_listing = interrogate_image(request.interrogator_network, image_obj)
+
+				networks = [
+						"wd-v1-4-moat-tagger-v2",
+						"wd-v1-4-convnext-tagger-v2",
+						"wd-v1-4-vit-tagger-v2",
+						"wd-v1-4-convnextv2-tagger-v2",
+						"wd-v1-4-swinv2-tagger-v2",
+						"DeepDanbooru",
+					]
+				for network in tqdm.tqdm(networks):
+					tag_ret = interrogate_image(network, image_obj)
+					network_tags = extract_tag_ret(tag_ret, request.interrogator_threshold)
+
+					for tag, probability in network_tags.items():
+						tag_listing[tag] = probability
+
+			else:
+				tag_ret = interrogate_image(request.interrogator_network, image_obj)
+				tag_listing = extract_tag_ret(tag_ret, request.interrogator_threshold)
 
 		except Exception as e:
 			ret = rpc_proto.services_pb2.ImageTagResults(
@@ -89,27 +144,23 @@ class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer
 
 		ret.interrogate_ok = True
 
-		if isinstance(tag_listing, dict):
-			for tag, probability in tag_listing.items():
-				if probability > request.interrogator_threshold:
-					tag_obj = rpc_proto.services_pb2.TagEntry(
-							tag         = tag,
-							probability = probability,
-						)
-					ret.tags.append(tag_obj)
+		tag_listing = [(tag, probability) for tag, probability in tag_listing.items()]
+		tag_listing.sort()
 
-		elif isinstance(tag_listing, (list, tuple)):
-			for tag in tag_listing:
+		for tag, probability in tag_listing:
+			if probability > request.interrogator_threshold:
 				tag_obj = rpc_proto.services_pb2.TagEntry(
 						tag         = tag,
-						probability = 1,
+						probability = probability,
 					)
 				ret.tags.append(tag_obj)
-		else:
+		ret.error_msg = "Image successfully processed. Deduced %s tags." % (len(ret.tags), )
 
-			ret.interrogate_ok = False
-			ret.error_msg = "Invalid type for tag return: %s" % (type(tag_listing), )
 
+		ret.error_msg = "Image successfully processed. Deduced %s tags." % (len(ret.tags), )
+
+
+		print(ret.error_msg)
 
 		return ret
 

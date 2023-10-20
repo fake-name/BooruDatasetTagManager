@@ -325,7 +325,7 @@
     <value>Translation completed.</value>
   </data>
   <data name="TipDatasetNoLoad" xml:space="preserve">
-    <value>Dataset not load.</value>
+    <value>No Image Dataset Loaded.</value>
   </data>
   <data name="TipDeleteFile" xml:space="preserve">
     <value>Are you sure you want to delete the selected image file?</value>

@@ -106,7 +106,6 @@ namespace BooruDatasetTagManager
             interrogate_image_button = new System.Windows.Forms.Button();
             clear_tag_search_button = new System.Windows.Forms.Button();
             tag_search_textbox = new System.Windows.Forms.TextBox();
-            LabelAllTags = new System.Windows.Forms.Label();
             contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(components);
             toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             toolStripMenuItem2 = new System.Windows.Forms.ToolStripMenuItem();
@@ -155,7 +154,7 @@ namespace BooruDatasetTagManager
             gridViewTags.RowHeadersVisible = false;
             gridViewTags.RowHeadersWidth = 72;
             gridViewTags.RowTemplate.Height = 29;
-            gridViewTags.Size = new System.Drawing.Size(369, 647);
+            gridViewTags.Size = new System.Drawing.Size(398, 790);
             gridViewTags.TabIndex = 2;
             gridViewTags.CellEndEdit += gridViewTags_CellEndEdit;
             gridViewTags.CellMouseEnter += dataGridViewTags_CellMouseEnter;
@@ -890,19 +889,6 @@ namespace BooruDatasetTagManager
             tag_search_textbox.TabIndex = 6;
             tag_search_textbox.Visible = false;
             tag_search_textbox.KeyDown += textBox1_KeyDown;
-            // 
-            // LabelAllTags
-            // 
-            LabelAllTags.AutoSize = true;
-            LabelAllTags.Dock = System.Windows.Forms.DockStyle.Top;
-            LabelAllTags.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            LabelAllTags.Location = new System.Drawing.Point(0, 0);
-            LabelAllTags.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            LabelAllTags.Name = "LabelAllTags";
-            LabelAllTags.Padding = new System.Windows.Forms.Padding(4, 4, 4, 5);
-            LabelAllTags.Size = new System.Drawing.Size(69, 30);
-            LabelAllTags.TabIndex = 5;
-            LabelAllTags.Text = "All tags";
             // 
             // contextMenuStrip1
             // 

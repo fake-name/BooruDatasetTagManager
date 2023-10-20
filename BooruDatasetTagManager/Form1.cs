@@ -22,6 +22,9 @@ using Image_Interrogator_Ns;
 using static BooruDatasetTagManager.DatasetManager;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using System.Diagnostics;
+using Google.Protobuf;
+using System.Reflection;
 
 namespace BooruDatasetTagManager
 {
@@ -1909,7 +1912,7 @@ namespace BooruDatasetTagManager
                 {
                     for (int j = 0; j < item.Value.Tags.Count; ++j)
                     {
-                        if (item.Value.Tags[j].Tag == gridViewAllTags["Tag", i].Value.ToString())
+                        if (item.Value.Tags[j].Tag == gridViewAllTags["ImageTags", i].Value.ToString())
                         {
                             tmpCount++;
                             break;
@@ -1924,16 +1927,98 @@ namespace BooruDatasetTagManager
         {
             ((EditableTagList)gridViewTags.DataSource).NextState();
         }
+
+        private bool selected_image_has_tag(string tag)
+        {
+            if (gridViewDS.SelectedRows.Count == 0) return false;
+            tag = tag.ToLower();
+
+            foreach (DataGridViewRow row in gridViewTags.Rows)
+            {
+
+                var cells = row.Cells;
+                string value = cells[0].Value.ToString();
+                if (value.Trim().ToLower().Contains(tag)) return true;
+            }
+
+
+            return false;
+        }
+
         private async void interrogate_image_button_Click(object sender, EventArgs e)
         {
+
+            if (Program.DataManager == null)
+            {
+                MessageBox.Show(I18n.GetText("TipDatasetNoLoad"));
+                return;
+            }
+            if (gridViewDS.SelectedRows.Count == 0)
+            {
+                // No images
+                return;
+            }
+
+            gridViewAllTags.Rows.Clear();
+
+            // Supporting more then one image at a time remains TBD.
+            var selected_image_row = gridViewDS.SelectedRows[0];
+            var image_path = selected_image_row.Cells["ImageFilePath"].Value.ToString();
 
             using var channel = GrpcChannel.ForAddress("http://127.0.0.1:50051");
             var client = new Image_Interrogator_Ns.ImageInterrogator.ImageInterrogatorClient(channel);
 
             var req = new Image_Interrogator_Ns.InterrogationRequest();
 
-            req.InterrogatorNetwork = selectInterrogatorComboBox.SelectedText;
+
+            req.InterrogatorNetwork = selectInterrogatorComboBox.SelectedItem.ToString();
             req.InterrogatorThreshold = 0.1F;
+            req.InterrogateImage = ByteString.CopyFrom(File.ReadAllBytes(image_path));
+
+            var resp = await client.InterrogateImageAsync(req);
+
+            Debug.WriteLine("Interrogate Response:" + resp.ErrorMsg);
+
+            if (resp.InterrogateOk)
+            {
+
+                /*
+                var Header = "Probability";
+                if (showCount)
+                {
+                    gridViewAllTags.Columns.Insert(1, new DataGridViewTextBoxColumn()
+                    {
+                        Name = Header,
+                        HeaderText = Header,
+                        ReadOnly = true,
+                        Width = 80,
+                    });
+
+                    // add count
+                    LockEdit(true);
+                    for (int i = 0; i < gridViewAllTags.RowCount; i++)
+                    {
+                        gridViewAllTags[Header, i].ReadOnly = true;
+                        gridViewAllTags[Header, i].Value = 0;
+                    }
+                    UpdateTagCount();
+                    LockEdit(false);
+                }
+                else
+                {
+                    gridViewAllTags.Columns.Remove(Header);
+                }
+                */
+
+                gridViewAllTags.Rows.Clear();
+
+                foreach (var tag in resp.Tags)
+                {
+                    if (!selected_image_has_tag(tag.Tag))
+                        gridViewAllTags.Rows.Add(tag.Tag);
+                }
+
+            }
 
 
             //var reply = await client.InterrogateImage(req);
