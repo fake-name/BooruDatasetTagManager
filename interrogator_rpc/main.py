@@ -32,11 +32,9 @@ INTERROGATOR_LOCK = threading.Lock()
 
 ACTIVE_INTERROGATOR = None
 
-def interrogate_image(network_name, image_obj):
+def interrogate_image(network_name, image_obj): 
 	global ACTIVE_INTERROGATOR
-	with INTERROGATOR_LOCK:
-		if ACTIVE_INTERROGATOR and ACTIVE_INTERROGATOR != network_name:
-			interrogator.INTERROGATOR_MAP[ACTIVE_INTERROGATOR].stop()
+	with INTERROGATOR_LOCK: 
 
 		intg = interrogator.INTERROGATOR_MAP[network_name]
 		intg.start()
@@ -121,7 +119,7 @@ class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer
 						"wd-v1-4-swinv2-tagger-v2",
 						"DeepDanbooru",
 					]
-				for network in tqdm.tqdm(networks):
+				for network in networks:
 					tag_ret = interrogate_image(network, image_obj)
 					network_tags = extract_tag_ret(tag_ret, request.interrogator_threshold)
 
