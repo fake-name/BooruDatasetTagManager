@@ -16,6 +16,7 @@
 import logging
 import threading
 import tqdm
+import traceback
 import time
 import io
 from PIL import Image
@@ -78,22 +79,21 @@ class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer
 	def InterrogateImage(self, request, context):
 
 		print("Interrogate Request!")
-		print("Network: ", request.interrogator_network)
+		print("Network: ", request.params)
 		print("File size: ", len(request.interrogate_image))
+		for network_conf in request.params:
+			if network_conf.interrogator_network not in interrogator.INTERROGATOR_MAP:
 
-		if request.interrogator_network not in interrogator.INTERROGATOR_MAP:
-
-			ret = rpc_proto.services_pb2.ImageTagResults(
-					interrogate_ok = False,
-					error_msg      = "Image Interrogator named '%s' is not a valid interrogator name. Known interrogators: '%s'" % (
-						request.interrogator_network, list(interrogator.INTERROGATOR_MAP.keys())
-						)
-				)
-			print(ret.error_msg)
-			return ret
+				ret = rpc_proto.services_pb2.ImageTagResults(
+						interrogate_ok = False,
+						error_msg      = "Image Interrogator named '%s' is not a valid interrogator name. Known interrogators: '%s'" % (
+							network_conf.interrogator_network, list(interrogator.INTERROGATOR_MAP.keys())
+							)
+					)
+				print(ret.error_msg)
+				return ret
 
 		if not request.interrogate_image:
-
 			ret = rpc_proto.services_pb2.ImageTagResults(
 					interrogate_ok = False,
 					error_msg      = "Interrogate Failed - Received no image!"
@@ -108,33 +108,22 @@ class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer
 			image_bytes = request.interrogate_image
 
 			image_obj = Image.open(io.BytesIO(image_bytes))
-			if request.interrogator_network == "deep-danbooru + waifu-diffusion":
 
+			for network_conf in request.params:
+				tag_ret = interrogate_image(network_conf.interrogator_network, image_obj)
+				network_tags = extract_tag_ret(tag_ret, network_conf.interrogator_threshold)
 
-				networks = [
-						"wd-v1-4-moat-tagger-v2",
-						"wd-v1-4-convnext-tagger-v2",
-						"wd-v1-4-vit-tagger-v2",
-						"wd-v1-4-convnextv2-tagger-v2",
-						"wd-v1-4-swinv2-tagger-v2",
-						"DeepDanbooru",
-					]
-				for network in networks:
-					tag_ret = interrogate_image(network, image_obj)
-					network_tags = extract_tag_ret(tag_ret, request.interrogator_threshold)
-
-					for tag, probability in network_tags.items():
+				for tag, probability in network_tags.items():
+					if probability > network_conf.interrogator_threshold:
 						tag_listing[tag] = probability
-
-			else:
-				tag_ret = interrogate_image(request.interrogator_network, image_obj)
-				tag_listing = extract_tag_ret(tag_ret, request.interrogator_threshold)
 
 		except Exception as e:
 			ret = rpc_proto.services_pb2.ImageTagResults(
 					interrogate_ok = False,
 					error_msg      = str(e),
 				)
+			print("Exception processing item!")
+			traceback.print_exc()
 			return ret
 
 
@@ -142,17 +131,16 @@ class InterrogatorServicer(rpc_proto.services_pb2_grpc.ImageInterrogatorServicer
 
 		ret.interrogate_ok = True
 
+		# I want to return the tags in sorted order. This is kind of silly, but w/e
 		tag_listing = [(tag, probability) for tag, probability in tag_listing.items()]
 		tag_listing.sort()
 
 		for tag, probability in tag_listing:
-			if probability > request.interrogator_threshold:
-				tag_obj = rpc_proto.services_pb2.TagEntry(
-						tag         = tag,
-						probability = probability,
-					)
-				ret.tags.append(tag_obj)
-		ret.error_msg = "Image successfully processed. Deduced %s tags." % (len(ret.tags), )
+			tag_obj = rpc_proto.services_pb2.TagEntry(
+					tag         = tag,
+					probability = probability,
+				)
+			ret.tags.append(tag_obj)
 
 
 		ret.error_msg = "Image successfully processed. Deduced %s tags." % (len(ret.tags), )
@@ -168,8 +156,8 @@ def serve():
 	maxMsgLength = 1024 * 1024 * 1024
 
 	server = grpc.server(futures.ThreadPoolExecutor(max_workers=10),
-					 options=[('grpc.max_message_length', maxMsgLength),
-							  ('grpc.max_send_message_length', maxMsgLength),
+					 options=[('grpc.max_message_length',         maxMsgLength),
+							  ('grpc.max_send_message_length',    maxMsgLength),
 							  ('grpc.max_receive_message_length', maxMsgLength)]
 		)
 	rpc_proto.services_pb2_grpc.add_ImageInterrogatorServicer_to_server(

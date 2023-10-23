@@ -12,12 +12,12 @@ class InterrogatorListing(_message.Message):
     def __init__(self, interrogator_names: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class NetworkInterrogationParameters(_message.Message):
-    __slots__ = ["interrogator_networks", "interrogator_threshold"]
-    INTERROGATOR_NETWORKS_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["interrogator_network", "interrogator_threshold"]
+    INTERROGATOR_NETWORK_FIELD_NUMBER: _ClassVar[int]
     INTERROGATOR_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
-    interrogator_networks: str
+    interrogator_network: str
     interrogator_threshold: float
-    def __init__(self, interrogator_networks: _Optional[str] = ..., interrogator_threshold: _Optional[float] = ...) -> None: ...
+    def __init__(self, interrogator_network: _Optional[str] = ..., interrogator_threshold: _Optional[float] = ...) -> None: ...
 
 class InterrogationRequest(_message.Message):
     __slots__ = ["params", "interrogate_image"]
